@@ -1,13 +1,16 @@
 import json
 import os
 import pandas as pd
+import sqlite3
 
 
 class LogDataLoader:
     def __init__(self, path=None):
         if path is None:
             path = "sqlite:///" + os.path.join(os.environ["HOME"], "tmp", "keras_logs.db")
+        db_path = path.replace("sqlite:///", "")
         try:
+            self.connection = sqlite3.connect(db_path, timeout=60)
             self.logs = pd.read_sql_table("log", path)
             self.runs = pd.read_sql_table("run", path).rename(columns={"id": "runid"}).sort_values("runid", ascending=False)
             self.df = self.logs.merge(self.runs)
@@ -41,6 +44,11 @@ class LogDataLoader:
     def get_comment(self, id):
         return self.runs[self.runs.runid == id]["comment"].iloc[0]
 
+    def remove(self, id):
+        id = str(id)
+        self.connection.execute("DELETE FROM run WHERE id=?", (id,))
+        self.connection.execute("DELETE FROM log WHERE runid=?", (id,))
+        self.connection.commit()
 
 
 def to_dict(config_string):

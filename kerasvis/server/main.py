@@ -1,6 +1,6 @@
 import time
 import os
-from flask import Flask, render_template
+from flask import Flask, render_template, redirect
 from .plots import empty_plot, loss_accuracy_plot
 from .dataloader import LogDataLoader, to_dict
 
@@ -9,19 +9,29 @@ app = Flask(__name__)
 app.config["keras_log_db_path"] = "sqlite:///" + os.path.join(os.environ["HOME"], "tmp", "keras_logs.db")
 print("DB is", app.config["keras_log_db_path"])
 
+
+def db():
+    try:
+        return LogDataLoader(path=app.config["keras_log_db_path"])
+    except ValueError:
+        redirect("/nodb")
+
+
 @app.route("/")
 def main():
-    try:
-        log = LogDataLoader(path=app.config["keras_log_db_path"])
-        return render_template("overview.html", data=zip(*log.get_overview()))
-    except ValueError:
-        return render_template("nodb.html")
+    log = db()
+    return render_template("overview.html", data=zip(*log.get_overview()))
+
+
+@app.route("/nodb")
+def nodb():
+    return render_template("nodb.html")
 
 
 @app.route("/id/<int:id>")
 def detail(id):
     start_time = time.time()
-    log = LogDataLoader(path=app.config["keras_log_db_path"])
+    log = db()
     if not log.id_exists(id):
         return render_template("idnotfound.html", id=id)
     comment = log.get_comment(id)
@@ -50,6 +60,13 @@ def detail(id):
                            last_update_time=last_update_time,
                            runs=zip(*log.get_overview()[:2]),
                            db_load_time=str(round(duration, 2)) + " s")
+
+
+@app.route("/remove/<int:id>")
+def remove(id):
+    log = db()
+    log.remove(id)
+    return redirect("/")
 
 
 app.debug = True
