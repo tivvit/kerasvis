@@ -125,6 +125,12 @@ class DBLogger:
     def _set_model(self, model):
         self.model = model
 
+    def set_params(self, params):
+        self.params = params
+
+    def set_model(self, model):
+        self.model = model
+
     def on_epoch_begin(self, epoch, logs={}):
         pass
 
